@@ -1,0 +1,298 @@
+---
+title: "Webtoons Project"
+author: "Tonia Wu"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(tidymodels)
+library(ggplot2)
+library(yardstick)
+library(tune)
+library(dplyr)
+library(corrr)
+library(klaR)
+library(discrim)
+library(poissonreg)
+library(pROC)
+library(MASS)
+library(glmnet)
+library(janitor)
+library(stringr)
+library(splitstackshape)
+```
+
+
+# Introduction 
+## What are Webtoons?
+Webtoons are a type of digital comic from South Korea designed for vertical scrolling on computers and mobile devices. They are often published in full color and may feature music and animations.
+
+![Some famous Webtoons](images/banner.jpg)
+
+# Webtoon Styles
+
+## Standard
+
+## Simplified Cartoon
+
+## Realistic Standard
+
+## American
+
+## Korean Realism
+
+# Loading Data
+For this project, we wil be working with data from the English platform of Webtoons. The file is from Kaggle: https://www.kaggle.com/datasets/iridazzle/webtoon-originals-datasets.
+
+Webtoons do not come with information on their art style or their author's country of origin, so I had to manually input them. 
+
+The variables we will look at (also in the codebook):
+
+* `title`
+* `genre`
+
+```{r}
+rawdata <- read.csv('webtoon_originals_en.csv')
+```
+# Content
+
+# Data Cleaning
+
+```{r, results = 'hide'}
+webtoons <- rawdata %>%
+  clean_names()
+```
+Count words in synopsis:
+```{r, results = 'hide'}
+webtoons <- webtoons %>%
+  mutate(synopsis_length = str_count(synopsis)) 
+```
+Dropping unhelpful variables:
+```{r, results = 'hide'}
+webtoons <- webtoons%>%
+  dplyr::select(-c(authors, title_id, synopsis))
+```
+
+Renaming the length column to the more descriptive 'free_episodes':
+```{r, results='hide'}
+webtoons <- webtoons %>%
+  rename(free_episodes = l_en_gth)
+```
+Parsing the days of the week into boolean columns:
+```{r, results='hide'}
+webtoons <- cSplit_e(webtoons, 'weekdays', sep = ',', mode = 'binary',
+         type = 'character', fill = 0, drop = TRUE)
+```
+Renaming columns:
+```{r, results='hide'}
+colnames(webtoons)[colnames(webtoons) == 'weekdays_SUNDAY'] <- 'sunday'
+colnames(webtoons)[colnames(webtoons) == 'weekdays_MONDAY'] <- 'monday'
+colnames(webtoons)[colnames(webtoons) == 'weekdays_TUESDAY'] <- 'tuesday'
+colnames(webtoons)[colnames(webtoons) == 'weekdays_WEDNESDAY'] <- 'wednesday'
+colnames(webtoons)[colnames(webtoons) == 'weekdays_THURSDAY'] <- 'thursday'
+colnames(webtoons)[colnames(webtoons) == 'weekdays_FRIDAY'] <- 'friday'
+colnames(webtoons)[colnames(webtoons) == 'weekdays_SATURDAY'] <- 'saturday'
+```
+Dummy coding the daily_pass variable to be consistent with the weekday variables:
+
+```{r}
+#webtoons$daily_pass <- ifelse(webtoons$daily_pass == TRUE, 1, 0)
+head(webtoons)
+```
+# Factors
+Converting `status`, `original_platform`, `genre`, and `style`, `daily_pass`, and the day variables to factors:
+```{r}
+webtoons$status <- as.factor(webtoons$status)
+webtoons$original_platform <- as.factor(webtoons$original_platform)
+webtoons$genre <- as.factor(webtoons$genre)
+webtoons$style <- as.factor(webtoons$style)
+webtoons$monday <- as.factor(webtoons$monday)
+webtoons$tuesday <- as.factor(webtoons$tuesday)
+webtoons$wednesday <- as.factor(webtoons$wednesday)
+webtoons$thursday <- as.factor(webtoons$thursday)
+webtoons$friday <- as.factor(webtoons$friday)
+webtoons$saturday <- as.factor(webtoons$saturday)
+webtoons$sunday <- as.factor(webtoons$sunday)
+webtoons$daily_pass <- as.factor(webtoons$daily_pass)
+
+```
+
+Webtoons sometimes asks its creators to illustrate for their official "Tiptoons." These informative webtoons give tips on subjects such as how to stay healthy during the pandemic and how to edit your webtoon. As they are not a regular fictive comic, we will drop the genre.
+
+```{r}
+webtoons <- subset(webtoons, genre != 'TIPTOON')
+```
+
+# Exploratory Data Analysis
+
+believe certain genres (specifically romance since it appeals to a broad viewership) and styles that are customary to that genre will lead to higher likes
+
+```{r}
+bchart1 <- ggplot(data = webtoons, aes(x = genre)) +
+  geom_bar() + 
+  coord_flip() + 
+  labs(y = 'Count', x = 'Genre')
+
+bchart1
+```
+The two dominating categories are fantasy and romance, so we can expect the most popular webtoons to be from these genres.
+```{r}
+scatter <- ggplot(data = webtoons, aes(x = synopsis_length, y = views)) +
+  geom_point() +
+  labs(y = 'views', x = 'synopsis_length')
+scatter
+head(webtoons)
+```
+```{r}
+bchart2 <- ggplot(data = webtoons, aes(x = style)) +
+  geom_bar() + 
+  coord_flip() + 
+  labs(y = 'Count', x = 'style')
+
+bchart2
+```
+
+```{r}
+bchart3 <- ggplot(data = webtoons, aes(x = style, y = mean(subscribers))) +
+  geom_bar(stat='identity') + 
+  coord_flip() + 
+  labs(y = 'subs', x = 'style')
+
+bchart3
+```
+
+```{r}
+bchart4 <- ggplot(data = webtoons, aes(x = synopsis_length, y = subscribers)) +
+  geom_bar(stat='identity') + 
+  labs(y = 'subs', x = 'synopsis_length')
+
+bchart4
+```
+
+
+I expect most ratings to be around 7+, since people will probably take points off from 10 and only save lower ratings for comics they vehemently dislike. (Thus I do not trust ratings to accurately gauge webtoon quality.)
+
+Interestingly, as the styles begin to depart from the standard style, the ratings are less polarized toward 10. Most notably the American style comics are the least favored. The density curve is even bimodal.
+
+```{r}
+ggplot(webtoons, aes(x=rating, fill=style)) + geom_density(alpha=.3)
+head(webtoons)
+```
+
+
+# Data Split
+```{r}
+set.seed(66)
+w_split <- initial_split(webtoons, prop = 0.8, strata = 'style')
+w_train <- training(w_split)
+w_test <- testing(w_split)
+```
+
+# Recipe
+v-fold cross validation with 5 folds stratifying by style
+```{r}
+w_folds <- vfold_cv(data = w_train, v = 5, strata = 'style')
+```
+
+setting up recipe to predict style:
+```{r}
+w_recipe <- recipe(style ~ original_platform + genre + free_episodes + subscribers + rating + views + likes + status + daily_pass + sunday + monday + tuesday + wednesday + thursday + friday + saturday + synopsis_length,
+                   data = w_train) %>%
+  step_dummy(c(status, original_platform, genre, daily_pass, monday, tuesday, wednesday, thursday, friday, sunday, saturday)) %>% 
+  step_normalize(all_predictors())
+```
+
+# logistic regression
+```{r}
+log_mod <- logistic_reg(penalty = tune(), 
+                        mixture = tune()) %>%
+  set_engine('glm') %>%
+  set_mode('classification')
+
+log_wkflow = workflow() %>%
+  add_model(log_mod) %>%
+  add_recipe(w_recipe)
+
+log_grid = grid_regular(degree(range = c(1, 10)), levels = 10)
+
+# log_tune <- tune_grid(object = log_wkflow,
+#                         resamples = w_folds, 
+#                         grid = log_grid, )
+```
+
+```{r}
+# boost_spec <- boost_tree(trees = 5000, tree_depth = 4) %>%
+#   set_engine("xgboost") %>%
+#   set_mode("classification")
+# 
+# boost_fit <- fit(boost_spec, style ~ original_platform + genre + free_episodes + subscribers + rating + views + likes + status + daily_pass + sunday + monday + tuesday + wednesday + thursday + friday + saturday + synopsis_length, data = w_train)
+# 
+# augment(boost_fit, new_data = w_test) %>%
+#   rmse(truth = style, estimate = .pred)
+
+
+
+
+log_reg <- logistic_reg() %>% 
+  set_engine("glm") %>% 
+  set_mode("classification")
+
+log_wkflow <- workflow() %>% 
+  add_model(log_reg) %>% 
+  add_recipe(w_recipe)
+
+degree_grid <- grid_regular(degree(range = c(1, 10)), levels = 10)
+
+tune_res_log <- tune_grid(object = log_wkflow, 
+  resamples = w_folds, 
+  grid = degree_grid)
+```
+```{r}
+# rf_mod <- 
+#   rand_forest(
+#               min_n = tune(),
+#               mtry = tune(),
+#               mode = "classification") %>% 
+#   set_engine("ranger")
+# 
+# rf_wkflow <- workflow() %>% 
+#   add_model(rf_mod) %>% 
+#   add_recipe(w_recipe)
+# 
+# rf_params <- parameters(rf_mod) %>% 
+#   update(mtry = mtry(range= c(2, 11)))
+# 
+# # define grid
+# rf_grid <- grid_regular(rf_params, levels = 3)
+# 
+# rf_tune <- rf_wkflow %>% 
+#   tune_grid(
+#     resamples = w_folds, 
+#     grid = rf_grid)
+```
+```{r}
+# bt_model <- boost_tree(mode = "classification",
+#                        min_n = tune(),
+#                        mtry = tune(),
+#                        learn_rate = tune()) %>% 
+#   set_engine("xgboost")
+# 
+# bt_workflow <- workflow() %>% 
+#   add_model(bt_model) %>% 
+#   add_recipe(w_recipe)
+# 
+# bt_params <- parameters(bt_model) %>% 
+#   update(mtry = mtry(range= c(2, 120)),
+#          learn_rate = learn_rate(range = c(-5, 0.2))
+#   )
+# 
+# # define grid
+# bt_grid <- grid_regular(bt_params, levels = 2)
+# 
+# bt_tune <- bt_workflow %>% 
+#   tune_grid(
+#     resamples = w_folds, 
+#     grid = bt_grid
+#    )
+```
