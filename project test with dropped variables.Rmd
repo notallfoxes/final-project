@@ -48,57 +48,108 @@ Renaming the length column to the more descriptive 'free_episodes':
 webtoons <- webtoons %>%
   rename(free_episodes = length)
 ```
+
+# Dummy coding
+Parsing the statuses into boolean columns:
+```{r, results='hide'}
+webtoons <- webtoons %>%
+  mutate(n = 1) %>%
+  pivot_wider(names_from = status, values_from = n, values_fill = list(n = 0))
+```
+
+
+Parsing the genres into boolean columns:
+```{r, results='hide'}
+# webtoons <- webtoons %>%
+#   mutate(n = 1) %>%
+#   pivot_wider(names_from = genre, values_from = n, values_fill = list(n = 0))
+```
 Parsing the days of the week into boolean columns:
 ```{r, results='hide'}
-# webtoons <- cSplit_e(webtoons, 'weekdays', sep = ',', mode = 'binary',
-#          type = 'character', fill = 0, drop = TRUE)
+webtoons <- cSplit_e(webtoons, 'weekdays', sep = ',', mode = 'binary',
+         type = 'character', fill = 0, drop = TRUE)
 ```
 Renaming columns:
 ```{r, results='hide'}
-# colnames(webtoons)[colnames(webtoons) == 'weekdays_SUNDAY'] <- 'sunday'
-# colnames(webtoons)[colnames(webtoons) == 'weekdays_MONDAY'] <- 'monday'
-# colnames(webtoons)[colnames(webtoons) == 'weekdays_TUESDAY'] <- 'tuesday'
-# colnames(webtoons)[colnames(webtoons) == 'weekdays_WEDNESDAY'] <- 'wednesday'
-# colnames(webtoons)[colnames(webtoons) == 'weekdays_THURSDAY'] <- 'thursday'
-# colnames(webtoons)[colnames(webtoons) == 'weekdays_FRIDAY'] <- 'friday'
-# colnames(webtoons)[colnames(webtoons) == 'weekdays_SATURDAY'] <- 'saturday'
+colnames(webtoons)[colnames(webtoons) == 'weekdays_SUNDAY'] <- 'sunday'
+colnames(webtoons)[colnames(webtoons) == 'weekdays_MONDAY'] <- 'monday'
+colnames(webtoons)[colnames(webtoons) == 'weekdays_TUESDAY'] <- 'tuesday'
+colnames(webtoons)[colnames(webtoons) == 'weekdays_WEDNESDAY'] <- 'wednesday'
+colnames(webtoons)[colnames(webtoons) == 'weekdays_THURSDAY'] <- 'thursday'
+colnames(webtoons)[colnames(webtoons) == 'weekdays_FRIDAY'] <- 'friday'
+colnames(webtoons)[colnames(webtoons) == 'weekdays_SATURDAY'] <- 'saturday'
 ```
 Dummy coding the daily_pass variable to be consistent with the weekday variables:
 
 ```{r}
-#webtoons$daily_pass <- ifelse(webtoons$daily_pass == TRUE, 1, 0)
+webtoons$daily_pass <- ifelse(webtoons$daily_pass == TRUE, 1, 0)
 head(webtoons)
 ```
 Dropping unhelpful variables:
 ```{r, results = 'hide'}
 webtoons <- webtoons%>%
-  dplyr::select(-synopsis)
+  dplyr::select(-c(synopsis, title_id, authors))
 
 # webtoons <- webtoons%>%
 #   dplyr::select(c(style, rating, views, likes, free_episodes, subscribers))
 ```
+
+Lowercase all column names:
+```{r}
+names(webtoons) <- tolower(names(webtoons))
+```
 # Factors
-Converting `status`, `original_platform`, `genre`, and `style`, `daily_pass`, and the day variables to factors:
+Converting `status`, `original_platform`, `style`, `daily_pass`, and the day and genre variables to factors:
 ```{r}
 webtoons$style <- as.factor(webtoons$style)
 # webtoons$status <- as.factor(webtoons$status)
 # webtoons$original_platform <- as.factor(webtoons$original_platform)
-# webtoons$genre <- as.factor(webtoons$genre)
-# webtoons$monday <- as.factor(webtoons$monday)
-# webtoons$tuesday <- as.factor(webtoons$tuesday)
-# webtoons$wednesday <- as.factor(webtoons$wednesday)
-# webtoons$thursday <- as.factor(webtoons$thursday)
-# webtoons$friday <- as.factor(webtoons$friday)
-# webtoons$saturday <- as.factor(webtoons$saturday)
-# webtoons$sunday <- as.factor(webtoons$sunday)
-# webtoons$daily_pass <- as.factor(webtoons$daily_pass)
+webtoons$daily_pass <- as.factor(webtoons$daily_pass)
+```
 
+```{r}
+# webtoons$action <- as.factor(webtoons$action)
+# webtoons$drama <- as.factor(webtoons$drama)
+# webtoons$thriller <- as.factor(webtoons$thriller)
+# webtoons$comedy <- as.factor(webtoons$comedy)
+# webtoons$scifi <- as.factor(webtoons$scifi)
+# webtoons$fantasy <- as.factor(webtoons$fantasy)
+# webtoons$heartwarming <- as.factor(webtoons$heartwarming)
+# webtoons$historical <- as.factor(webtoons$historical)
+# webtoons$horror <- as.factor(webtoons$horror)
+# webtoons$mystery <- as.factor(webtoons$mystery)
+# webtoons$romance <- as.factor(webtoons$romance)
+# webtoons$slice_of_life <- as.factor(webtoons$slice_of_life)
+# webtoons$sports <- as.factor(webtoons$sports)
+# webtoons$super_hero <- as.factor(webtoons$super_hero)
+# webtoons$supernatural <- as.factor(webtoons$supernatural)
+# webtoons$thriller <- as.factor(webtoons$thriller)
+```
+Statuses:
+```{r}
+webtoons$ongoing <- as.factor(webtoons$ongoing)
+webtoons$completed <- as.factor(webtoons$completed)
+webtoons$hiatus <- as.factor(webtoons$hiatus)
+
+
+```
+
+```{r}
+webtoons$monday <- as.factor(webtoons$monday)
+webtoons$tuesday <- as.factor(webtoons$tuesday)
+webtoons$tuesday <- as.factor(webtoons$tuesday)
+webtoons$wednesday <- as.factor(webtoons$wednesday)
+webtoons$thursday <- as.factor(webtoons$thursday)
+webtoons$friday <- as.factor(webtoons$friday)
+webtoons$saturday <- as.factor(webtoons$saturday)
+webtoons$sunday <- as.factor(webtoons$sunday)
 ```
 
 Webtoons sometimes asks its creators to illustrate for their official "Tiptoons." These informative webtoons give tips on subjects such as how to stay healthy during the pandemic and how to edit your webtoon. As they are not a regular fictive comic, we will drop the genre.
 
 ```{r}
-# webtoons <- subset(webtoons, genre != 'TIPTOON')
+# webtoons <- webtoons%>%
+#   dplyr::select(-tiptoon)
 ```
 
 # Data Split
@@ -117,30 +168,30 @@ w_folds <- vfold_cv(data = w_train, v = 5, strata = 'style')
 
 setting up recipe to predict style:
 ```{r}
-w_recipe <- recipe(style ~ rating + views + 
-                     free_episodes + likes + subscribers + synopsis_length,
+w_recipe <- recipe(style ~ rating + views  + daily_pass + free_episodes  + likes + subscribers + synopsis_length + monday + tuesday + wednesday + thursday + friday + saturday + sunday + ongoing + completed + hiatus,
                    data = w_train) %>%
+  step_dummy(c(daily_pass, monday, tuesday, wednesday, thursday, friday, saturday, sunday, ongoing, completed, hiatus)) %>%
   step_normalize(all_predictors()) 
 ```
 
 # logistic regression
 ```{r}
-log_mod <- logistic_reg(penalty = tune(),
-                        mixture = tune()) %>%
-  set_engine('glmnet') %>%
-  set_mode('classification')
-
-log_wkflow = workflow() %>%
-  add_model(log_mod) %>%
-  add_recipe(w_recipe)
-
-log_grid = grid_regular(penalty(range = c(-5, 5)),
-                        mixture(range = c(1, 2)),
-                        levels = 5)
-
-log_tune <- log_wkflow %>%
-  tune_grid(resamples = w_folds,
-            grid = log_grid )
+# log_mod <- logistic_reg(penalty = tune(),
+#                         mixture = tune()) %>%
+#   set_engine('glmnet') %>%
+#   set_mode('classification')
+# 
+# log_wkflow = workflow() %>%
+#   add_model(log_mod) %>%
+#   add_recipe(w_recipe)
+# 
+# log_grid = grid_regular(penalty(range = c(-5, 5)),
+#                         mixture(range = c(1, 2)),
+#                         levels = 5)
+# 
+# log_tune <- log_wkflow %>%
+#   tune_grid(resamples = w_folds,
+#             grid = log_grid )
 ```
 ```{r}
 head(webtoons)
@@ -158,7 +209,7 @@ rf_wkflow <- workflow() %>%
   add_recipe(w_recipe)
 
 rf_grid <- grid_regular(min_n(),
-                        mtry(range = c(1, 4)),
+                        mtry(range = c(1, 7)),
                         levels = 3)
 
 rf_tune <- rf_wkflow %>%
@@ -167,6 +218,11 @@ rf_tune <- rf_wkflow %>%
 
 rf_tune %>% collect_metrics() %>%
   select(-.estimator, -.config)
+
+autoplot(rf_tune)
+```
+```{r}
+arrange(collect_metrics(rf_tune),desc(mean))
 ```
 ```{r}
 boost_mod <- boost_tree(trees = tune()) %>%
@@ -189,7 +245,13 @@ tune_boost <- tune_grid(
   resamples = w_folds,
   grid = boost_grid
 )
+
+tune_boost %>% collect_metrics() %>% 
+  select(-.estimator, -.config)
+
+autoplot(tune_boost)
 ```
+
 # decision tree
 ```{r}
 tree_mod <- decision_tree() %>%
@@ -199,7 +261,10 @@ tree_spec <- tree_mod %>%
   set_mode('classification')
 
 tree_fit <- tree_spec %>%
-  fit(style ~ free_episodes + subscribers + rating + views + likes + synopsis_length, data = w_train)
+  fit(style ~ rating + views  + daily_pass + free_episodes  + likes + subscribers + synopsis_length + monday + tuesday + wednesday + thursday + friday + saturday + sunday + ongoing + completed + hiatus,
+                   data = w_train) %>%
+  step_dummy(c(daily_pass, monday, tuesday, wednesday, thursday, friday, saturday, sunday, ongoing, completed, hiatus)) %>%
+  step_normalize(all_predictors()) 
 
 tree_fit %>%
   extract_fit_engine() %>%
@@ -211,6 +276,7 @@ augment(tree_fit, new_data = w_train) %>%
 augment(tree_fit, new_data = w_train) %>%
   conf_mat(truth = style, estimate = .pred_class) %>%
   autoplot(type = "heatmap")
+
 ```
 
 ```{r}
