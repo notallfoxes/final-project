@@ -1,26 +1,30 @@
 ---
 title: "Webtoons Project"
 author: "Tonia Wu"
-output: pdf_document
+output:
+  html_document:
+    df_print: paged
+    code_folding: show
 ---
 
 ```{r setup, include=FALSE}
 library(tidyverse)
 library(tidymodels)
 library(ggplot2)
-library(yardstick)
-library(tune)
-library(dplyr)
-library(corrr)
-library(klaR)
-library(discrim)
-library(poissonreg)
-library(pROC)
-library(MASS)
-library(glmnet)
 library(janitor)
-library(stringr)
 library(splitstackshape)
+library(randomForest)
+library(ggpubr)
+# library(tune)
+library(dplyr)
+library(rpart.plot)
+# library(yardstick)
+# library(klaR)
+# library(discrim)
+# library(poissonreg)
+# library(pROC)
+# library(MASS)
+# library(glmnet)
 ```
 
 
@@ -47,88 +51,55 @@ For this project, we wil be working with data from the English platform of Webto
 
 Webtoons do not come with information on their art style or their author's country of origin, so I had to manually input them. 
 
+The raw file contains data on the genre, authors, weekdays uploaded, number of free episodes, subscriber count, views, likes, upload status, and the synopsis:
+```{r class.source = 'fold-hide'}
+rawdata <- read.csv('webtoon_originals_en.csv')
+```
+```{r}
+head(rawdata)
+```
+
 The variables we will look at (also in the codebook):
 
 * `title`
 * `genre`
 
-```{r}
-rawdata <- read.csv('webtoon_originals_en.csv')
-```
-# Content
+Before we can proceed, we will need to clean and unstack some of the columns.
 
 # Data Cleaning
 
-```{r, results = 'hide'}
+Here are the steps I took to prepare the data.
+
+* Cleaning the names
+
+```{r class.source = 'fold-hide'}
 webtoons <- rawdata %>%
   clean_names()
 ```
-Count words in synopsis:
-```{r, results = 'hide'}
+
+* Adding a new variable called `synopsis_length` to quantify the `synopsis`, since I'm curious if it will make an impact
+```{r class.source = 'fold-hide', results = 'hide'}
 webtoons <- webtoons %>%
   mutate(synopsis_length = str_count(synopsis)) 
 ```
-Dropping unhelpful variables:
-```{r, results = 'hide'}
+
+* Dropping unhelpful variables, such as `title_id`
+```{r class.source = 'fold-hide', results = 'hide'}
 webtoons <- webtoons%>%
   dplyr::select(-c(authors, title_id, synopsis))
 ```
 
-Renaming the length column to the more descriptive 'free_episodes':
-```{r, results='hide'}
+* Renaming the length column to the more descriptive 'free_episodes' to avoid confusion:
+```{r class.source = 'fold-hide'}
 webtoons <- webtoons %>%
-  rename(free_episodes = l_en_gth)
-```
-Parsing the days of the week into boolean columns:
-```{r, results='hide'}
-webtoons <- cSplit_e(webtoons, 'weekdays', sep = ',', mode = 'binary',
-         type = 'character', fill = 0, drop = TRUE)
-```
-Renaming columns:
-```{r, results='hide'}
-colnames(webtoons)[colnames(webtoons) == 'weekdays_SUNDAY'] <- 'sunday'
-colnames(webtoons)[colnames(webtoons) == 'weekdays_MONDAY'] <- 'monday'
-colnames(webtoons)[colnames(webtoons) == 'weekdays_TUESDAY'] <- 'tuesday'
-colnames(webtoons)[colnames(webtoons) == 'weekdays_WEDNESDAY'] <- 'wednesday'
-colnames(webtoons)[colnames(webtoons) == 'weekdays_THURSDAY'] <- 'thursday'
-colnames(webtoons)[colnames(webtoons) == 'weekdays_FRIDAY'] <- 'friday'
-colnames(webtoons)[colnames(webtoons) == 'weekdays_SATURDAY'] <- 'saturday'
-```
-Dummy coding the daily_pass variable to be consistent with the weekday variables:
-
-```{r}
-#webtoons$daily_pass <- ifelse(webtoons$daily_pass == TRUE, 1, 0)
-head(webtoons)
-```
-# Factors
-Converting `status`, `original_platform`, `genre`, and `style`, `daily_pass`, and the day variables to factors:
-```{r}
-webtoons$status <- as.factor(webtoons$status)
-webtoons$original_platform <- as.factor(webtoons$original_platform)
-webtoons$genre <- as.factor(webtoons$genre)
-webtoons$style <- as.factor(webtoons$style)
-webtoons$monday <- as.factor(webtoons$monday)
-webtoons$tuesday <- as.factor(webtoons$tuesday)
-webtoons$wednesday <- as.factor(webtoons$wednesday)
-webtoons$thursday <- as.factor(webtoons$thursday)
-webtoons$friday <- as.factor(webtoons$friday)
-webtoons$saturday <- as.factor(webtoons$saturday)
-webtoons$sunday <- as.factor(webtoons$sunday)
-webtoons$daily_pass <- as.factor(webtoons$daily_pass)
-
-```
-
-Webtoons sometimes asks its creators to illustrate for their official "Tiptoons." These informative webtoons give tips on subjects such as how to stay healthy during the pandemic and how to edit your webtoon. As they are not a regular fictive comic, we will drop the genre.
-
-```{r}
-webtoons <- subset(webtoons, genre != 'TIPTOON')
+  rename(free_episodes = length)
 ```
 
 # Exploratory Data Analysis
 
-believe certain genres (specifically romance since it appeals to a broad viewership) and styles that are customary to that genre will lead to higher likes
+Because Webtoons are relatively new and generally more popular with younger audiences, I expect there to be an uneven genre distribution. Let's take a look:
 
-```{r}
+```{r class.source = 'fold-hide'}
 bchart1 <- ggplot(data = webtoons, aes(x = genre)) +
   geom_bar() + 
   coord_flip() + 
@@ -136,15 +107,26 @@ bchart1 <- ggplot(data = webtoons, aes(x = genre)) +
 
 bchart1
 ```
-The two dominating categories are fantasy and romance, so we can expect the most popular webtoons to be from these genres.
+The two dominating categories, fantasy and romance, as well as the next group of popular genres, have broad appeal. This is not too surprising. We must also remember that a single webtoon may encompass more than one genre.
+
+One of the least popular genres is called a "Tiptoon." These are informative webtoons that the platform  sometimes asks its creators to illustrate, giving tips on subjects such as how to stay healthy during the pandemic and how to edit your webtoon. As they are not a regular fictive comic, we will drop the genre.
+
 ```{r}
-scatter <- ggplot(data = webtoons, aes(x = synopsis_length, y = views)) +
-  geom_point() +
-  labs(y = 'views', x = 'synopsis_length')
-scatter
-head(webtoons)
+webtoons <- subset(webtoons, genre != 'TIPTOON')
 ```
-```{r}
+
+I also suspect budding authors to look at the synopses of established creators in their genres as inspiration. Let's see if synopsis lengths are generally similar within their genres.
+
+```{r class.source = 'fold-hide'}
+boxplot <- ggplot(webtoons, aes(x=synopsis_length, y=genre)) + 
+  geom_boxplot()
+boxplot
+```
+Since we do see some fundamental differences in median synopsis length, such as with the slice of life and the historical genres, we will retain `synopsis_length`.
+
+Now let's look at the distribution of our outcome variable, `style`.
+
+```{r class.source = 'fold-hide'}
 bchart2 <- ggplot(data = webtoons, aes(x = style)) +
   geom_bar() + 
   coord_flip() + 
@@ -152,8 +134,9 @@ bchart2 <- ggplot(data = webtoons, aes(x = style)) +
 
 bchart2
 ```
+Not surprisingly, most webtoons are of the standard style, with deviations from it becoming less common.
 
-```{r}
+```{r class.source = 'fold-hide'}
 bchart3 <- ggplot(data = webtoons, aes(x = style, y = mean(subscribers))) +
   geom_bar(stat='identity') + 
   coord_flip() + 
@@ -161,8 +144,44 @@ bchart3 <- ggplot(data = webtoons, aes(x = style, y = mean(subscribers))) +
 
 bchart3
 ```
+Next we will explore each genre's popularity. Webtoons offers four metrics to judge this: `rating`, on a scaled of 1 to 10 (with steps of 0.5), `likes`, `views`, and `subscribers`.
 
-```{r}
+```{r class.source = 'fold-hide'}
+
+likes_plot <- ggplot(webtoons, aes(reorder(style, likes), likes)) +
+  geom_boxplot(varwidth = TRUE) + 
+  labs(
+    title = "Likes by Style",
+    x = "Style"
+  ) + coord_trans(x = 'log2', y = 'log2')
+
+views_plot <- ggplot(webtoons, aes(reorder(style, views), views)) +
+  geom_boxplot(varwidth = TRUE) + 
+  labs(
+    title = "Views by Style",
+    x = "Style"
+  ) + coord_trans(x = 'log2', y = 'log2')
+
+subs_plot <- ggplot(webtoons, aes(reorder(style, subscribers), subscribers)) +
+  geom_boxplot(varwidth = TRUE) + 
+  labs(
+    title = "Subscribers by Style",
+    x = "Style"
+  ) + coord_trans(x = 'log2', y = 'log2')
+
+rating_plot <- ggplot(webtoons, aes(reorder(style, rating), rating)) +
+  geom_boxplot(varwidth = TRUE) + 
+  labs(
+    title = "Rating by Genre",
+    x = "Genre"
+  ) + coord_trans(x = 'log2', y = 'log2')
+
+ggarrange(likes_plot, views_plot, subs_plot, rating_plot,
+          ncol = 2, nrow = 2)
+```
+Interestingly, the American style consistently ranks the lowest, while the others all swap order at some point. This should not come as a surprise, since Webtoons is a Korean platform, so readers may prefer a more Asian style.
+
+```{r class.source = 'fold-hide'}
 bchart4 <- ggplot(data = webtoons, aes(x = synopsis_length, y = subscribers)) +
   geom_bar(stat='identity') + 
   labs(y = 'subs', x = 'synopsis_length')
@@ -175,13 +194,125 @@ I expect most ratings to be around 7+, since people will probably take points of
 
 Interestingly, as the styles begin to depart from the standard style, the ratings are less polarized toward 10. Most notably the American style comics are the least favored. The density curve is even bimodal.
 
-```{r}
+```{r class.source = 'fold-hide'}
 ggplot(webtoons, aes(x=rating, fill=style)) + geom_density(alpha=.3)
 head(webtoons)
 ```
 
 
-# Data Split
+# Dummy coding
+
+`status`, `original_platform`, `genre`, and the days of the week variables are all categorical variables, so we will now parse them into boolean columns.
+
+* `status`
+```{r, results='hide'}
+webtoons <- webtoons %>%
+  mutate(n = 1) %>%
+  pivot_wider(names_from = status, values_from = n, values_fill = list(n = 0))
+```
+
+* `original_platform`
+Parsing the platforms into boolean columns:
+```{r, results='hide'}
+webtoons <- webtoons %>%
+  mutate(n = 1) %>%
+  pivot_wider(names_from = original_platform, values_from = n, values_fill = list(n = 0))
+```
+
+* `genre`
+Parsing the genres into boolean columns:
+```{r, results='hide'}
+webtoons <- webtoons %>%
+  mutate(n = 1) %>%
+  pivot_wider(names_from = genre, values_from = n, values_fill = list(n = 0))
+
+# Lowercase all column names
+names(webtoons) <- tolower(names(webtoons))
+```
+
+* days of the week
+```{r, results='hide'}
+webtoons <- cSplit_e(webtoons, 'weekdays', sep = ',', mode = 'binary',
+         type = 'character', fill = 0, drop = TRUE)
+
+# renaming
+colnames(webtoons)[colnames(webtoons) == 'weekdays_SUNDAY'] <- 'sunday'
+colnames(webtoons)[colnames(webtoons) == 'weekdays_MONDAY'] <- 'monday'
+colnames(webtoons)[colnames(webtoons) == 'weekdays_TUESDAY'] <- 'tuesday'
+colnames(webtoons)[colnames(webtoons) == 'weekdays_WEDNESDAY'] <- 'wednesday'
+colnames(webtoons)[colnames(webtoons) == 'weekdays_THURSDAY'] <- 'thursday'
+colnames(webtoons)[colnames(webtoons) == 'weekdays_FRIDAY'] <- 'friday'
+colnames(webtoons)[colnames(webtoons) == 'weekdays_SATURDAY'] <- 'saturday'
+```
+
+* `daily_pass`:
+
+```{r}
+webtoons$daily_pass <- ifelse(webtoons$daily_pass == TRUE, 1, 0)
+head(webtoons)
+```
+# Factors
+Now we will convert our categorial variables into factors.
+
+* `style` and `daily_pass`
+```{r class.source = 'fold-hide'}
+webtoons$style <- as.factor(webtoons$style)
+webtoons$daily_pass <- as.factor(webtoons$daily_pass)
+```
+
+* platforms:
+```{r class.source = 'fold-hide'}
+webtoons$english <- as.factor(webtoons$english)
+webtoons$korean <- as.factor(webtoons$korean)
+webtoons$japanese <- as.factor(webtoons$japanese)
+webtoons$indonesian <- as.factor(webtoons$indonesian)
+```
+
+* genres
+```{r class.source = 'fold-hide'}
+webtoons$action <- as.factor(webtoons$action)
+webtoons$comedy <- as.factor(webtoons$comedy)
+webtoons$drama <- as.factor(webtoons$drama)
+webtoons$fantasy <- as.factor(webtoons$fantasy)
+webtoons$heartwarming <- as.factor(webtoons$heartwarming)
+webtoons$historical <- as.factor(webtoons$historical)
+webtoons$horror <- as.factor(webtoons$horror)
+webtoons$mystery <- as.factor(webtoons$mystery)
+webtoons$romance <- as.factor(webtoons$romance)
+webtoons$slice_of_life <- as.factor(webtoons$slice_of_life)
+webtoons$scifi <- as.factor(webtoons$scifi)
+webtoons$sports <- as.factor(webtoons$sports)
+webtoons$super_hero <- as.factor(webtoons$super_hero)
+webtoons$supernatural <- as.factor(webtoons$supernatural)
+webtoons$thriller <- as.factor(webtoons$thriller)
+```
+
+* statuses:
+```{r}
+webtoons$ongoing <- as.factor(webtoons$ongoing)
+webtoons$completed <- as.factor(webtoons$completed)
+webtoons$hiatus <- as.factor(webtoons$hiatus)
+```
+
+* days of the week:
+```{r}
+webtoons$monday <- as.factor(webtoons$monday)
+webtoons$tuesday <- as.factor(webtoons$tuesday)
+webtoons$tuesday <- as.factor(webtoons$tuesday)
+webtoons$wednesday <- as.factor(webtoons$wednesday)
+webtoons$thursday <- as.factor(webtoons$thursday)
+webtoons$friday <- as.factor(webtoons$friday)
+webtoons$saturday <- as.factor(webtoons$saturday)
+webtoons$sunday <- as.factor(webtoons$sunday)
+```
+
+
+
+
+
+# Modeling
+
+## Data Split
 ```{r}
 set.seed(66)
 w_split <- initial_split(webtoons, prop = 0.8, strata = 'style')
@@ -189,110 +320,114 @@ w_train <- training(w_split)
 w_test <- testing(w_split)
 ```
 
-# Recipe
+## Folding data
 v-fold cross validation with 5 folds stratifying by style
 ```{r}
 w_folds <- vfold_cv(data = w_train, v = 5, strata = 'style')
 ```
 
+## Recipe
 setting up recipe to predict style:
 ```{r}
-w_recipe <- recipe(style ~ original_platform + genre + free_episodes + subscribers + rating + views + likes + status + daily_pass + sunday + monday + tuesday + wednesday + thursday + friday + saturday + synopsis_length,
+w_recipe <- recipe(style ~ rating + views  + daily_pass + free_episodes  + likes + subscribers + synopsis_length + monday + tuesday + wednesday + thursday + friday + saturday + sunday + ongoing + completed + hiatus + english + korean + japanese + indonesian + action + comedy + drama + fantasy + heartwarming + historical + horror + mystery + romance + scifi + slice_of_life + sports + super_hero + supernatural + thriller,
                    data = w_train) %>%
-  step_dummy(c(status, original_platform, genre, daily_pass, monday, tuesday, wednesday, thursday, friday, sunday, saturday)) %>% 
+  step_dummy(c(daily_pass, monday, tuesday, wednesday, thursday, friday, saturday, sunday, ongoing, completed, hiatus, english, korean, japanese, indonesian, action, comedy, drama, fantasy, heartwarming, historical, horror, mystery, romance, scifi, slice_of_life, sports, super_hero, supernatural, thriller)) %>%
   step_normalize(all_predictors())
 ```
 
-# logistic regression
+## Multinomial logistic regression
 ```{r}
-log_mod <- logistic_reg(penalty = tune(), 
+multinom_mod <- multinom_reg(penalty = tune(),
                         mixture = tune()) %>%
-  set_engine('glm') %>%
+  set_engine('glmnet') %>%
   set_mode('classification')
 
-log_wkflow = workflow() %>%
-  add_model(log_mod) %>%
+multinom_wkflow = workflow() %>%
+  add_model(multinom_mod) %>%
   add_recipe(w_recipe)
 
-log_grid = grid_regular(degree(range = c(1, 10)), levels = 10)
+multinom_grid = grid_regular(penalty(range = c(-5, 5)),
+                       mixture(range = c(0, 1)),
+                       levels = 10)
 
-# log_tune <- tune_grid(object = log_wkflow,
-#                         resamples = w_folds, 
-#                         grid = log_grid, )
+multinom_tune <- tune_grid(object = multinom_wkflow,
+                        resamples = w_folds,
+                        grid = multinom_grid)
+
+autoplot(multinom_tune)
 ```
 
+## Random forest
 ```{r}
-# boost_spec <- boost_tree(trees = 5000, tree_depth = 4) %>%
-#   set_engine("xgboost") %>%
-#   set_mode("classification")
-# 
-# boost_fit <- fit(boost_spec, style ~ original_platform + genre + free_episodes + subscribers + rating + views + likes + status + daily_pass + sunday + monday + tuesday + wednesday + thursday + friday + saturday + synopsis_length, data = w_train)
-# 
-# augment(boost_fit, new_data = w_test) %>%
-#   rmse(truth = style, estimate = .pred)
+rf_mod <-
+  rand_forest(min_n = tune(), mtry = tune()) %>%
+  set_mode('classification') %>%
+  set_engine('randomForest')
 
-
-
-
-log_reg <- logistic_reg() %>% 
-  set_engine("glm") %>% 
-  set_mode("classification")
-
-log_wkflow <- workflow() %>% 
-  add_model(log_reg) %>% 
+rf_wkflow <- workflow() %>%
+  add_model(rf_mod) %>%
   add_recipe(w_recipe)
 
-degree_grid <- grid_regular(degree(range = c(1, 10)), levels = 10)
+rf_grid <- grid_regular(min_n(),
+                        mtry(range = c(1, 7)),
+                        levels = 3)
 
-tune_res_log <- tune_grid(object = log_wkflow, 
-  resamples = w_folds, 
-  grid = degree_grid)
+rf_tune <- rf_wkflow %>%
+  tune_grid(resamples = w_folds,
+    grid = rf_grid)
+
+rf_tune %>% collect_metrics() %>%
+  select(-.estimator, -.config)
 ```
+
+# Boosted trees
 ```{r}
-# rf_mod <- 
-#   rand_forest(
-#               min_n = tune(),
-#               mtry = tune(),
-#               mode = "classification") %>% 
-#   set_engine("ranger")
-# 
-# rf_wkflow <- workflow() %>% 
-#   add_model(rf_mod) %>% 
-#   add_recipe(w_recipe)
-# 
-# rf_params <- parameters(rf_mod) %>% 
-#   update(mtry = mtry(range= c(2, 11)))
-# 
-# # define grid
-# rf_grid <- grid_regular(rf_params, levels = 3)
-# 
-# rf_tune <- rf_wkflow %>% 
-#   tune_grid(
-#     resamples = w_folds, 
-#     grid = rf_grid)
+boost_mod <- boost_tree(trees = tune()) %>%
+  set_engine('xgboost') %>%
+  set_mode('classification')
+
+boost_wkflow <- workflow() %>%
+  add_model(boost_mod) %>%
+  add_recipe(w_recipe)
+
+boost_grid <- grid_regular(trees(c(10,100)),
+                           levels = 3)
+
+tune_boost <- tune_grid(
+  boost_wkflow,
+  resamples = w_folds,
+  grid = boost_grid
+)
+
+tune_boost %>% collect_metrics() %>% 
+  select(-.estimator, -.config)
+
+autoplot(tune_boost)
 ```
+
+# Decision tree
 ```{r}
-# bt_model <- boost_tree(mode = "classification",
-#                        min_n = tune(),
-#                        mtry = tune(),
-#                        learn_rate = tune()) %>% 
-#   set_engine("xgboost")
-# 
-# bt_workflow <- workflow() %>% 
-#   add_model(bt_model) %>% 
-#   add_recipe(w_recipe)
-# 
-# bt_params <- parameters(bt_model) %>% 
-#   update(mtry = mtry(range= c(2, 120)),
-#          learn_rate = learn_rate(range = c(-5, 0.2))
-#   )
-# 
-# # define grid
-# bt_grid <- grid_regular(bt_params, levels = 2)
-# 
-# bt_tune <- bt_workflow %>% 
-#   tune_grid(
-#     resamples = w_folds, 
-#     grid = bt_grid
-#    )
+tree_mod <- decision_tree() %>%
+  set_engine('rpart')
+
+tree_spec <- tree_mod %>%
+  set_mode('classification')
+
+tree_fit <- tree_spec %>%
+  fit(style ~ rating + views  + daily_pass + free_episodes  + likes + subscribers + synopsis_length + monday + tuesday + wednesday + thursday + friday + saturday + sunday + ongoing + completed + hiatus + english + korean + indonesian + action + comedy + drama + fantasy + heartwarming + historical + horror + mystery + romance + scifi + slice_of_life + sports + super_hero + supernatural + thriller,
+                   data = w_train) %>%
+  step_dummy(c(daily_pass, monday, tuesday, wednesday, thursday, friday, saturday, sunday, ongoing, completed, hiatus, english, korean, indonesian, action, comedy, drama, fantasy, heartwarming, historical, horror, mystery, romance, scifi, slice_of_life, sports, super_hero, supernatural, thriller)) %>%
+  step_normalize(all_predictors())
+
+tree_fit %>%
+  extract_fit_engine() %>%
+  rpart.plot(roundint = FALSE)
+
+augment(tree_fit, new_data = w_train) %>%
+  accuracy(truth = style, estimate = .pred_class)
+
+augment(tree_fit, new_data = w_train) %>%
+  conf_mat(truth = style, estimate = .pred_class) %>%
+  autoplot(type = "heatmap")
+
 ```
