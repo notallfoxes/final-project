@@ -29,23 +29,74 @@ library(rpart.plot)
 ```
 
 
+
 # Introduction 
 ## What are Webtoons?
 Webtoons are a type of digital comic from South Korea designed for vertical scrolling on computers and mobile devices. They are often published in full color and may feature music and animations.
 
-![Some famous Webtoons](images/banner.jpg)
 
-# Webtoon Styles
+<center>
+
+![' '](images/banner.jpg){width="296"}
+
+</center>
+
+Webtoons Originals, which for the sake of brevity we will refer to as "webtoons," first start on the Discover section of the platform. Anyone can upload to Discover; once a comic is discovered by Webtoon's editors and the artist agrees to a contract, it will move to the Originals.
+
+## Webtoon Styles
+
+This project aims to find a connection between a webtoon's art style and variables such as its performance (such as likes and views), genre, and upload schedule.
+
+To give some background on the various art styles creators use, I've divided each webtoon into one of several styles:
 
 ## Standard
+<center>
+
+![Wished You Were Dead ](images/std_example.jpg){width="120"}
+
+</center>
+(!! INCLUDE ANOTHER EXAMPLE WITHOUT A MUSCULAR BODY)
+This style is generally faithful or inspired by anime, employing cell shading and sharp but still dainty features. Notice in the example how the face is idealized (notably with a slim jaw) and typical of a "flower boy," in direct opposition with his muscles. Often these employ a realistic color palette and struggle to portray the older characters as truly old.
 
 ## Simplified Cartoon
+<center>
+
+![Supersonic Girl](images/simplified_cartoon.jpg){width="120"}
+
+</center>
+
+The simplified cartoon/comic style covers art styles that mimic that of TV animation. They often simplify their characters into highly readable shapes and use a wider variety of line weights than the standard style does. Many also include brighter and wackier color palettes, as well as textured brushes.
 
 ## Realistic Standard
+<center>
+
+![Covenant](images/realistic_standard.jpg){width="120"}
+
+</center>
+
+This style is in between the standard and American styles in that it generally includes fingernails, nostrils, blunter jaws, teeth, gums, etc. There are more variations in nose shapes and a tendency to have smaller, more proportionate eyes. 
 
 ## American
+<center>
+
+![
+The Strange Tales of Oscar Zahn](images/american.jpg){width="220"}
+
+(include classic superhero + nonstandard)
+This style gives its characters stronger jaws, thick, tapered lines, strong shading, and intense black shadows. It doesn't shy away from showing wrinkles, fingernails, and other details usually absent from standard styles. Many also use a desaturated blue to highlight black, as well as use textured brushes.
+</center>
+
 
 ## Korean Realism
+<center>
+
+![True Beauty](images/korean_realism.jpg){width="120"}
+
+</center>
+
+(Include another example with open eyes)
+This style differs from the realistic standard style in that its realism focus comes mainly from its volumetric skin shading (often done with an airbrush or multiple low opacity brush strokes). The skin shading usually highlights bone structure, lips (including the men!), and the body in a "fleshy" way. Like the standard style, you will often see a delicate face on a muscular body. Everyone is essentially drawn to look attractive.
+
 
 # Loading Data
 For this project, we wil be working with data from the English platform of Webtoons. The file is from Kaggle: https://www.kaggle.com/datasets/iridazzle/webtoon-originals-datasets.
@@ -108,6 +159,7 @@ bchart1 <- ggplot(data = webtoons, aes(x = genre)) +
 
 bchart1
 ```
+
 The two dominating categories, fantasy and romance, as well as the next group of popular genres, have broad appeal. This is not too surprising. We must also remember that a single webtoon may encompass more than one genre.
 
 One of the least popular genres is called a "Tiptoon." These are informative webtoons that the platform  sometimes asks its creators to illustrate, giving tips on subjects such as how to stay healthy during the pandemic and how to edit your webtoon. As they are not a regular fictive comic, we will drop the genre.
@@ -123,6 +175,7 @@ boxplot <- ggplot(webtoons, aes(x=synopsis_length, y=genre)) +
   geom_boxplot()
 boxplot
 ```
+
 Since we do see some fundamental differences in median synopsis length, such as with the slice of life and the historical genres, we will retain `synopsis_length`.
 
 Now let's look at the distribution of our outcome variable, `style`.
@@ -135,6 +188,7 @@ bchart2 <- ggplot(data = webtoons, aes(x = style)) +
 
 bchart2
 ```
+
 Not surprisingly, most webtoons are of the standard style, with deviations from it becoming less common.
 
 Next we will explore each genre's popularity. Webtoons offers four metrics to judge this: `rating`, on a scaled of 1 to 10 (with steps of 0.5), `likes`, `views`, and `subscribers`.
@@ -146,7 +200,7 @@ likes_plot <- ggplot(webtoons, aes(reorder(style, likes), likes)) +
   labs(
     title = "Likes by Style",
     x = "Style"
-  ) + coord_trans(x = 'log2', y = 'log2')
+  ) + coord_trans(x = 'log2', y = 'log2') 
 
 views_plot <- ggplot(webtoons, aes(reorder(style, views), views)) +
   geom_boxplot(varwidth = TRUE) + 
@@ -174,19 +228,19 @@ ggarrange(likes_plot, views_plot, subs_plot, rating_plot,
 ```
 Interestingly, the American style consistently ranks the lowest, while the others all swap order at some point. This should not come as a surprise, since Webtoons is a Korean platform, so readers may prefer a more Asian style.
 
-```{r }
+(!! Try to fix the axes)
+
+```{r, warning = FALSE}
 ggplot(webtoons, aes(reorder(style, free_episodes), free_episodes)) +
   geom_boxplot(varwidth = TRUE) + 
   labs(
-    title = "Rating by Style",
+    title = "Style by Number of Free Episodes",
     x = "Style"
   ) 
 ```
+Again, the styles with the most departure from the standard styles—cartoon and American—stand out the most. The American style has a much lower potential ceiling than the rest in terms of free episodes, and the cartoon style has a higher median than every other style's 75th percentiles. 
 
-
-I expect most ratings to be around 7+, since people will probably take points off from 10 and only save lower ratings for comics they vehemently dislike. (Thus I do not trust ratings to accurately gauge webtoon quality.)
-
-Interestingly, as the styles begin to depart from the standard style, the ratings are less polarized toward 10. Most notably the American style comics are the least favored. The density curve is even bimodal.
+Let's see if we can make any other obvious distinctions between styles by comparing each genre's composition.
 
 ```{r }
 ggplot(data = webtoons) + 
@@ -212,7 +266,6 @@ webtoons <- webtoons %>%
 ```
 
 * `original_platform`
-Parsing the platforms into boolean columns:
 ```{r, results='hide'}
 webtoons <- webtoons %>%
   mutate(n = 1) %>%
@@ -220,7 +273,6 @@ webtoons <- webtoons %>%
 ```
 
 * `genre`
-Parsing the genres into boolean columns:
 ```{r, results='hide'}
 webtoons <- webtoons %>%
   mutate(n = 1) %>%
@@ -245,7 +297,7 @@ colnames(webtoons)[colnames(webtoons) == 'weekdays_FRIDAY'] <- 'friday'
 colnames(webtoons)[colnames(webtoons) == 'weekdays_SATURDAY'] <- 'saturday'
 ```
 
-* `daily_pass`:
+* `daily_pass`
 
 ```{r}
 webtoons$daily_pass <- ifelse(webtoons$daily_pass == TRUE, 1, 0)
@@ -261,7 +313,7 @@ webtoons$style <- as.factor(webtoons$style)
 webtoons$daily_pass <- as.factor(webtoons$daily_pass)
 ```
 
-* platforms:
+* platforms
 ```{r }
 webtoons$english <- as.factor(webtoons$english)
 webtoons$korean <- as.factor(webtoons$korean)
@@ -288,14 +340,14 @@ webtoons$supernatural <- as.factor(webtoons$supernatural)
 webtoons$thriller <- as.factor(webtoons$thriller)
 ```
 
-* statuses:
+* statuses
 ```{r}
 webtoons$ongoing <- as.factor(webtoons$ongoing)
 webtoons$completed <- as.factor(webtoons$completed)
 webtoons$hiatus <- as.factor(webtoons$hiatus)
 ```
 
-* days of the week:
+* days of the week
 ```{r}
 webtoons$monday <- as.factor(webtoons$monday)
 webtoons$tuesday <- as.factor(webtoons$tuesday)
@@ -320,28 +372,28 @@ w_train <- training(w_split)
 w_test <- testing(w_split)
 ```
 
-* Checking our data split in correct percentages:
-```{r}
+* Here I will check that the data are split in correct percentages.
+```{r, results = 'hide'}
 dim(w_train)
 ```
 
-```{r}
+```{r, results = 'hide'}
 dim(w_test)
 ```
 
-```{r}
+```{r, results = 'hide'}
 dim(webtoons)
 ```
 
 ## Folding data
 Now we will perform v-fold cross validation with 10 folds, stratifying by `style`.
-```{r}
+```{r class.source = 'fold-show'}
 w_folds <- vfold_cv(data = w_train, v = 10, strata = 'style')
 ```
 
 ## Recipe
 Setting up recipe to predict `style`:
-```{r}
+```{r class.source = 'fold-show'}
 w_recipe <- recipe(style ~ rating + views  + daily_pass + free_episodes  + likes + subscribers + synopsis_length + monday + tuesday + wednesday + thursday + friday + saturday + sunday + ongoing + completed + hiatus + english + korean + japanese + indonesian + action + comedy + drama + fantasy + heartwarming + historical + horror + mystery + romance + scifi + slice_of_life + sports + super_hero + supernatural + thriller,
                    data = w_train) %>%
   step_dummy(c(daily_pass, monday, tuesday, wednesday, thursday, friday, saturday, sunday, ongoing, completed, hiatus, english, korean, japanese, indonesian, action, comedy, drama, fantasy, heartwarming, historical, horror, mystery, romance, scifi, slice_of_life, sports, super_hero, supernatural, thriller)) %>%
@@ -360,7 +412,7 @@ I decided to run the following models thanks to my dataset being dominated by ca
 ## Multinomial logistic regression
 
 We will tune `penalty` and `mixture`. Since our outcome is `style`, `mode` is set to `classification`.
-```{r}
+```{r class.source = 'fold-show'}
 multinom_mod <- multinom_reg(penalty = tune(),
                         mixture = tune()) %>%
   set_engine('glmnet') %>%
@@ -382,7 +434,7 @@ autoplot(multinom_tune)
 ```
 
 ## Random forest
-```{r}
+```{r class.source = 'fold-show'}
 rf_mod <-
   rand_forest(min_n = tune(), mtry = tune()) %>%
   set_mode('classification') %>%
@@ -393,7 +445,7 @@ rf_wkflow <- workflow() %>%
   add_recipe(w_recipe)
 
 rf_grid <- grid_regular(min_n(),
-                        mtry(range = c(1, 7)),
+                        mtry(range = c(1, 35)),
                         levels = 3)
 
 rf_tune <- rf_wkflow %>%
@@ -405,7 +457,7 @@ rf_tune %>% collect_metrics() %>%
 ```
 
 # Boosted trees
-```{r}
+```{r class.source = 'fold-show'}
 boost_mod <- boost_tree(trees = tune()) %>%
   set_engine('xgboost') %>%
   set_mode('classification')
@@ -414,7 +466,7 @@ boost_wkflow <- workflow() %>%
   add_model(boost_mod) %>%
   add_recipe(w_recipe)
 
-boost_grid <- grid_regular(trees(c(10,100)),
+boost_grid <- grid_regular(trees(c(60,140)),
                            levels = 3)
 
 tune_boost <- tune_grid(
@@ -430,7 +482,7 @@ autoplot(tune_boost)
 ```
 
 # Decision tree
-```{r}
+```{r class.source = 'fold-show'}
 tree_mod <- decision_tree() %>%
   set_engine('rpart')
 
@@ -455,3 +507,5 @@ augment(tree_fit, new_data = w_train) %>%
   autoplot(type = "heatmap")
 
 ```
+
+# Nearest Neighbors
