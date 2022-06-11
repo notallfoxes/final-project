@@ -49,7 +49,7 @@ To give some background on the various art styles creators use, I've divided eac
 ## Standard
 <center>
 
-![(from left) Wished You Were Dead, Ghost Teller](images/standard.png){width="250"}
+![(from left) Wished You Were Dead, Ghost Teller](images/standard.png){width="290"}
 
 </center>
 
@@ -58,7 +58,7 @@ This style is generally faithful or inspired by anime, employing cell shading an
 ## Simplified Cartoon
 <center>
 
-![(from left) Lore Olympus, Bluechair, School Bus Graveyard, Supersonic Girl](images/cartoon.png){width="720"}
+![(from left) Lore Olympus, Bluechair, School Bus Graveyard, Supersonic Girl](images/cartoon.png){width="820"}
 
 </center>
 
@@ -67,7 +67,7 @@ The simplified cartoon/comic style covers art styles that mimic that of TV anima
 ## Realistic Standard
 <center>
 
-![(from left) Annarasumanara, Covenant](images/realistic_standard.png){width="250"}
+![(from left) Annarasumanara, Covenant](images/realistic_standard.png){width="290"}
 
 </center>
 
@@ -90,7 +90,7 @@ Overall, the clearest market of this style is heavy employment of black. The las
 ## Korean Realism
 <center>
 
-![(from left) Secret Playlist, True Beauty](images/korean_realism.png){width="120"}
+![(from left) Secret Playlist, True Beauty](images/korean_realism.png){width="290"}
 </center>
 
 This style differs from the realistic standard style in that its realism focus often comes from its volumetric skin shading (often done with an airbrush or multiple low opacity brush strokes). The skin shading usually highlights bone structure, lips (including the men!), and the body in a "fleshy" way that appeals to an East Asian audience. Like the standard style, you will often see a delicate face on a muscular body. 
@@ -646,6 +646,7 @@ tree_fit <- dt_wf_fit %>%
 
 rpart.plot(tree_fit$fit, roundint = FALSE)
 ```
+
 On one end are the American and cartoon styles; on the other, the standard and realistic standard styles. 
 
 ```{r class.source = 'fold-show'}
@@ -662,17 +663,6 @@ result_dt <- arrange(
   filter(row_number()==1)
 result_dt
 ```
-The multinomial model still reigns. Out of curiosity, let's see what the model predicted.
-
-A heatmap of our results shows that the decision tree had quite a bit of trouble separating the standard style from the Korean realism style with the given predictors. The model failed to correctly recognize _any_ of the Korean realism-style webtoons, for that matter.
-
-
-```{r}
-conf_mat(tree_predictions, truth = style, estimate = .pred_class) %>%   autoplot(type = "heatmap") +
-  scale_x_discrete(limits = rev) +
-  scale_y_discrete(limits = rev)
-```
-65.5% of the standard, 42.9% of the realistic standard, 40.0% of the cartoon, and 26.3% of the American styles were predicted correctly. 
 
 ### Nearest Neighbors
 
@@ -727,16 +717,7 @@ result_knn <-arrange(collect_metrics(tune_knn),
 
 result_knn
 ```
-The nearest neighbors model still can't beat the multinomial one. Let's examine the heatmap to see if there are any notable differences.
-
-```{r}
-augment(knn_fit, new_data = w_test) %>%
-  conf_mat(truth = style, estimate = .pred_class) %>%
-  autoplot(type = "heatmap")+
-  scale_x_discrete(limits = rev) +
-  scale_y_discrete(limits = rev)
-```
-We see a similar problem. KNN can't decipher what makes a style Korean realism, but we do see one failed guess at a realistic standard style comic this time!
+The nearest neighbors model still can't beat the multinomial one. 
 
 ```{r}
 result_lab <- c('multinom', 'rf', 'boost', 'dt', 'knn')
@@ -797,7 +778,8 @@ conf_mat(predict_best, truth = style, estimate = .pred_class) %>%   autoplot(typ
   scale_x_discrete(limits = rev) +
   scale_y_discrete(limits = rev)
 ```
-Again, it looks like our model can't distinguish the Korean realism style at all. I find it interesting that the only times it even tried to predict it, it incorrectly guessed the standard style. 
+
+It looks like our model can't distinguish the Korean realism style at all. I find it interesting that the only times it even tried to predict it, it incorrectly guessed the standard style. 
 
 
 ```{r}
