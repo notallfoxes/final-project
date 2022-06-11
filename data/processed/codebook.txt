@@ -1,0 +1,30 @@
+title: webtoon title
+style: the art style (American, cartoon, standard, realistic standard, or Korean realism)
+free_episodes: the number of free episodes available 
+subscribers: the number of subscribers
+rating: the rating out of 10, with 10 being the best and measured in steps of 0.5
+views: total accumulated views
+likes: total accumulated likes from all available episodes
+synopsis_length: word count in the webtoon's synopsis
+daily_pass: whether or not the webtoon is limited to one free episode per day 
+	1: True
+	0: False
+sunday, monday, ..., saturday: whether or not the webtoon is updated on that particular day
+	1: True
+	0: False
+action, comedy, drama, ... supernatural, thriller: whether or not the webtoon is that specific genre
+	1: True
+	0: False
+English, Korean, Japanese, Indonesian: whether or not the webtoon originated from that specific language platform
+	1: True
+	0: False
+ongoing, completed, hiatus: whether or not the webtoon's status is currently continuing, finished, or on a break
+	1: True
+	0: False
+
+
+
+
+
+*Data is accurate up to May 2022
+
