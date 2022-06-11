@@ -49,36 +49,39 @@ To give some background on the various art styles creators use, I've divided eac
 ## Standard
 <center>
 
-![Wished You Were Dead ](images/std_example.jpg){width="120"}
+![(from left) Wished You Were Dead, Ghost Teller](images/standard.png){width="250"}
 
 </center>
-(!! INCLUDE ANOTHER EXAMPLE WITHOUT A MUSCULAR BODY)
+
 This style is generally faithful or inspired by anime, employing cell shading and sharp but still dainty features. Notice in the example how the face is idealized (notably with a slim jaw) and typical of a "flower boy," in direct opposition with his muscles. Often these employ a realistic color palette and struggle to portray the older characters as truly old.
 
 ## Simplified Cartoon
 <center>
 
-![Supersonic Girl](images/simplified_cartoon.jpg){width="120"}
+![(from left) Lore Olympus, Bluechair, School Bus Graveyard, Supersonic Girl](images/cartoon.png){width="720"}
 
 </center>
 
-The simplified cartoon/comic style covers art styles that mimic that of TV animation. They often simplify their characters into highly readable shapes and use a wider variety of line weights than the standard style does. Many also include brighter and wackier color palettes, as well as textured brushes.
+The simplified cartoon/comic style covers art styles that mimic that of TV animation and are heavily stylized. They often simplify their characters into highly readable shapes and use a wider variety of line weights than the standard style does. Many also include brighter and wackier color palettes, as well as textured brushes. This is the only style to use color palettes that are either following an aesthetic (e.g. vaporwave) or are simply far removed from reality.
 
 ## Realistic Standard
 <center>
 
-![Covenant](images/realistic_standard.jpg){width="120"}
+![(from left) Annarasumanara, Covenant](images/realistic_standard.png){width="250"}
 
 </center>
 
-This style is in between the standard and American styles in that it generally includes fingernails, nostrils, blunter jaws, teeth, gums, etc. There are more variations in nose shapes and a tendency to have smaller, more proportionate eyes. 
+This style is in between the standard and American styles in that it generally includes fingernails, nostrils, blunter jaws, teeth, gums, etc. There are more variations in nose shapes and a tendency to have smaller, more proportionate eyes. These characteristics apply to the comic's _main cast_ and _young characters_. In the standard style, if the artist decides to include said details, it is often limited to the older characters.
+
+Note that Annarasumanara is in this category instead of American because of its thin line weight and overall softness. It lacks enough of the intensity and texture of the American style.
 
 ## American
 <center>
 
 ![(from left) The Strange Tales of Oscar Zahn, Cyko-KO, GOSU](images/American.png){width="620"}
+<center>
 
-This style gives its characters stronger jaws, strong shading, and intense black shadows. It doesn't shy away from showing wrinkles, fingernails, and other details usually absent from standard styles. Many also use textured brushes, as in the first example, or thick, tapered, and vary line weights and a desaturated blue to highlight black hair, as in the second. 
+This style gives its characters stronger jaws, strong shading, and intense black shadows. It doesn't shy away from showing wrinkles, fingernails, and other details usually absent from standard styles. Many also use textured brushes, as in the first example, or a desaturated blue to highlight black hair, as in the second. Line weight can vary from thick, tapered lines to much thinner ones used to hatch and add realistic texture.
 
 Overall, the clearest market of this style is heavy employment of black. The last example is not your classic Western superhero comic, but I've included it in this style because it employs its conventions regardless. _Note that my use of 'American' does not indicate the country of origin._
 
@@ -87,9 +90,7 @@ Overall, the clearest market of this style is heavy employment of black. The las
 ## Korean Realism
 <center>
 
-![True Beauty](images/korean_realism.jpg){width="120"}
-![Secret Playlist](images/korean_realism_2.jpg){width="120"}
-
+![(from left) Secret Playlist, True Beauty](images/korean_realism.png){width="120"}
 </center>
 
 This style differs from the realistic standard style in that its realism focus often comes from its volumetric skin shading (often done with an airbrush or multiple low opacity brush strokes). The skin shading usually highlights bone structure, lips (including the men!), and the body in a "fleshy" way that appeals to an East Asian audience. Like the standard style, you will often see a delicate face on a muscular body. 
@@ -237,6 +238,7 @@ square_plot <- ggarrange(likes_plot, views_plot, subs_plot, rating_plot,
 
 grid.arrange(square_plot, tableGrob(full_name, rows = NULL), nrow = 1, widths = c(3, 1))
 ```
+
 Interestingly, the American style consistently ranks the lowest, while the others all swap order at some point. Realistic standard and cartoon at fourth and third lowest, and Korean realism and standard compete for first place.
 
 Readers may prefer a more Asian style. This should not come as a surprise since Webtoons is a Korean platform and may be more well known to those within an Asian sphere.
@@ -250,6 +252,7 @@ ggplot(webtoons, aes(reorder(style, free_episodes), free_episodes)) +
     x = 'Style'
   ) 
 ```
+
 Again, the styles with the most departure from the standard styles—cartoon and American—stand out the most. The American style has a much lower potential ceiling than the rest in terms of free episodes, and the cartoon style has a higher median than every other style's 75th percentiles. 
 
 Let's see if we can make any other obvious distinctions between styles by comparing each genre's composition.
@@ -414,16 +417,16 @@ w_train <- training(w_split)
 w_test <- testing(w_split)
 ```
 
-```{r}
-# Here I will check that the data are split in correct percentages.
+In the collapsed code below, we'll check that the data are split correctly.
+```{r, results = 'hide'}
 dim(w_train)
 ```
 
-```{r}
+```{r, results = 'hide'}
 dim(w_test)
 ```
 
-```{r}
+```{r, results = 'hide'}
 dim(webtoons)
 ```
 
@@ -482,16 +485,39 @@ result_multinom <- multinom_tune %>%
   collect_metrics() %>% 
   arrange(desc(mean)) %>%
   filter(row_number()==1)
-
-result_multinom
 ```
 
 ```{r}
-load(file='./data/tuned_models/tune_multinom.rda')
-autoplot(multinom_tune)
+multinom_best <- multinom_tune %>%
+  select_best(metric = 'roc_auc')
+
+final_multinom_workflow <- multinom_wkflow %>% 
+                       finalize_workflow(multinom_best)
+
+multinom_wf_fit <- final_multinom_workflow %>% 
+               fit(data = w_train)
+
+m_tree_fit <- multinom_wf_fit %>% 
+            pull_workflow_fit()
+
+
+m_tree_last_fit <- final_multinom_workflow %>% 
+                 last_fit(w_split)
+m_tree_predictions <- m_tree_last_fit %>% collect_predictions()
+
+multinom_acc <- augment(
+  multinom_wf_fit, new_data = w_train) %>%
+  accuracy(truth = style, estimate = .pred_class)
+
+multinom_acc
 ```
 
-## Random forest
+```{r}
+result_multinom
+```
+On average, the `roc_auc` metric hit a surprisingly high 0.78! With how subjective Webtoon popularity can be, I'm surprised that the genre is somewhat predictable.
+
+### Random forest
 ```{r class.source = 'fold-show'}
 rf_mod <-
   rand_forest(min_n = tune(), mtry = tune()) %>%
@@ -522,10 +548,11 @@ result_rf <- tune_rf %>%
 
 result_rf
 ```
+0.77 is just a smidge lower than the last model's 0.78, but the random forest has a higher standard error. Our multinomial model is the best so far.
 
-# Boosted trees
+### Boosted trees
 
-Here we specify the tuning parameter `tree` and set the engine to `xgboost` beforestoring the recipe in a workflow:
+Here we specify the tuning parameter `tree` and set the engine to `xgboost` before storing the recipe in a workflow:
 
 ```{r class.source = 'fold-show'}
 boost_mod <- boost_tree(trees = tune()) %>%
@@ -537,7 +564,7 @@ boost_wkflow <- workflow() %>%
   add_recipe(w_recipe)
 ```
 
-I set the upper limit for the 
+Creating the tuning grid and then tuning:
 ```{r class.source = 'fold-show'}
 boost_grid <- grid_regular(trees(c(100, 1000)),
                            levels = 5)
@@ -553,8 +580,6 @@ tune_boost <- tune_grid(
 
 ```{r class.source = 'fold-show'}
 # load(file='./data/tuned_models/tune_boost.rda')
-autoplot(tune_boost)
-
 result_boost <- tune_boost %>% 
   collect_metrics() %>% 
   arrange(desc(mean)) %>%
@@ -562,8 +587,9 @@ result_boost <- tune_boost %>%
 
 result_boost
 ```
+Still, the multinomial model is the best.
 
-# Decision tree
+### Decision tree
 
 We will now prepare to fit the decision tree model in a similar fashion.
 
@@ -597,7 +623,7 @@ dt_grid <- grid_regular(cost_complexity(),
                           levels = 3)
 ```
 
-Finally, we fit the decision tree:
+Finally, we fit the model:
 ```{r class.source = 'fold-show'}
 tune_dt <- dt_wkflow %>%
                tune_grid(resamples = w_folds,
@@ -605,7 +631,8 @@ tune_dt <- dt_wkflow %>%
 tune_dt %>% show_best('roc_auc')
 ```
 
-```{r class.source = 'fold-show'}
+Here's a look at the decision tree.
+```{r}
 dt_best <- tune_dt %>%
   select_best(metric = 'roc_auc')
 final_dt_workflow <- dt_wkflow %>% 
@@ -619,7 +646,7 @@ tree_fit <- dt_wf_fit %>%
 
 rpart.plot(tree_fit$fit, roundint = FALSE)
 ```
-
+On one end are the American and cartoon styles; on the other, the standard and realistic standard styles. 
 
 ```{r class.source = 'fold-show'}
 
@@ -635,11 +662,7 @@ result_dt <- arrange(
   filter(row_number()==1)
 result_dt
 ```
-```{r}
-dt_accuracy <- augment(dt_wf_fit, new_data = w_train) %>%
-  accuracy(truth = style, estimate = .pred_class)
-dt_accuracy
-```
+The multinomial model still reigns. Out of curiosity, let's see what the model predicted.
 
 A heatmap of our results shows that the decision tree had quite a bit of trouble separating the standard style from the Korean realism style with the given predictors. The model failed to correctly recognize _any_ of the Korean realism-style webtoons, for that matter.
 
@@ -650,8 +673,10 @@ conf_mat(tree_predictions, truth = style, estimate = .pred_class) %>%   autoplot
   scale_y_discrete(limits = rev)
 ```
 65.5% of the standard, 42.9% of the realistic standard, 40.0% of the cartoon, and 26.3% of the American styles were predicted correctly. 
-# Nearest Neighbors
 
+### Nearest Neighbors
+
+For our last model, let's run cross fold validation on the nearest neighbors model. Again, let's create the model and set up the workflow. 
 ```{r class.source = 'fold-show', warning = FALSE}
 knn_mod <- 
   nearest_neighbor(
@@ -662,30 +687,28 @@ knn_mod <-
 knn_wkflow <- workflow() %>% 
   add_model(knn_mod) %>% 
   add_recipe(w_recipe) 
+```
 
+Setting up the tuning grid:
+
+```{r class.source = 'fold-show'}
 knn_params <- parameters(knn_mod)
 
 knn_grid <- grid_regular(knn_params, levels = 2)
 
+```
+
+Tuning:
+```{r class.source = 'fold-show'}
 tune_knn <- knn_wkflow %>%
   tune_grid(resamples = w_folds,
             grid = knn_grid)
 
-
-
-# save(tune_knn, knn_wkflow, file = "data/tuned_models/tune_knn.rda")
+# save(tune_knn, knn_wkflow, file = "data/tuned_models/tune_knn.rda")# load(file='./data/tuned_models/tune_knn.rda')
 ```
 
-```{r class.source = 'fold-show'}
-load(file='./data/tuned_models/tune_knn.rda')
-
-result_knn <-arrange(collect_metrics(tune_knn),
-                     desc(mean)) %>% 
-  select(-.estimator, -.config) %>%
-  filter(row_number()==1)
-
-result_knn
-
+Below, we'll see how the model performed.
+```{r}
 
 best_complexity <- select_best(tune_knn, metric = "roc_auc")
 
@@ -694,14 +717,26 @@ knn_final <- finalize_workflow(knn_wkflow, best_complexity)
 knn_fit <- fit(knn_final,data = w_train)
 augment(knn_fit, new_data = w_test) %>%
   accuracy(truth = style, estimate = .pred_class)
+```
 
+```{r}
+result_knn <-arrange(collect_metrics(tune_knn),
+                     desc(mean)) %>% 
+  select(-.estimator, -.config) %>%
+  filter(row_number()==1)
+
+result_knn
+```
+The nearest neighbors model still can't beat the multinomial one. Let's examine the heatmap to see if there are any notable differences.
+
+```{r}
 augment(knn_fit, new_data = w_test) %>%
   conf_mat(truth = style, estimate = .pred_class) %>%
   autoplot(type = "heatmap")+
   scale_x_discrete(limits = rev) +
   scale_y_discrete(limits = rev)
 ```
-
+We see a similar problem. KNN can't decipher what makes a style Korean realism, but we do see one failed guess at a realistic standard style comic this time!
 
 ```{r}
 result_lab <- c('multinom', 'rf', 'boost', 'dt', 'knn')
@@ -745,10 +780,8 @@ final_accuracy
 
 ```{r}
 acc_lab <- c('test', 'train')
-acc_lab
 
-acc <- c(final_accuracy['.estimate'], dt_accuracy['.estimate'])
-acc
+acc <- c(final_accuracy['.estimate'], multinom_acc['.estimate'])
 
 acc_matrix <- matrix(acc)
 
@@ -757,16 +790,15 @@ rownames(acc_matrix) <- acc_lab
 
 acc_matrix
 ```
-The model actually performed slightly better on the training set, so I am concerned about overfitting (though it is not by much.) Let's take a look at how exactly it performed.
+The model actually performed slightly better on the testing set! Though, it's possible this is just due to noise. Let's take a closer look at what happened.
 
 ```{r}
 conf_mat(predict_best, truth = style, estimate = .pred_class) %>%   autoplot(type = "heatmap") +
   scale_x_discrete(limits = rev) +
   scale_y_discrete(limits = rev)
 ```
-Again, it looks like our model can't distinguish the Korean realism style at all. I find it interesting that the only time it even tried to predict it, it incorrectly guessed the standard style. 
+Again, it looks like our model can't distinguish the Korean realism style at all. I find it interesting that the only times it even tried to predict it, it incorrectly guessed the standard style. 
 
-Below is a table comparing how the testing predictions compare to the training ones.
 
 ```{r}
 genre_lab <- c('standard', 'realistic standard', 'cartoon', 'American', 'Korean realism')
